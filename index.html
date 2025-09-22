@@ -60,29 +60,7 @@
       <div class="footer">Implementation: single-file HTML + JS using canvas. No libraries.</div>
     </div>
 
-    <div class="card">
-      <h1>How it works (TL;DR)</h1>
-      <div class="meta">Grid-based snake, starts at length 1. Each game tick moves the head one cell. Eating a fruit grows snake by 1.</div>
-
-      <h2 style="font-size:15px;margin-top:10px">Pseudocode plan</h2>
-      <pre style="font-size:13px;line-height:1.45;color:#cfe7ff;background:transparent;border-left:3px solid rgba(255,255,255,0.03);padding-left:10px">
-1. Initialize canvas, grid size, state (snake array, dir, fruit, score, running=false).
-2. On Start: place snake at center length=1, spawn random fruit not on snake, reset score.
-3. Input: handle Arrow keys -> update nextDirection but block direct 180° reversals.
-4. Game loop (fixed tick based on speed):
-   a. Compute new head = head + dir.
-   b. Check collisions: wall OR self -> game over.
-   c. Insert new head at front of snake array.
-   d. If head on fruit: increment score, don't remove tail (grow), spawn new fruit.
-      Else: remove tail (snake moves without growing).
-5. Render: clear canvas, draw grid (optional), draw snake segments (head distinct), draw fruit.
-6. Pause / Restart controls and UI updates.
-      </pre>
-
-      <h2 style="font-size:15px;margin-top:10px">Run</h2>
-      <div class="meta">Open <code>/snake-game/index.html</code> in a browser (file:// works). Use Start to begin.</div>
-    </div>
-  </div>
+    
 
   <script>
   // Minimal comments: explain why certain checks exist

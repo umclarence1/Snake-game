@@ -1,86 +1,37 @@
-<!-- /snake-game/index.html -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Snake — Simple JS Game</title>
+  <title>Snake — Fullscreen</title>
   <style>
-    :root{--bg:#0b1221;--card:#0f1724;--accent:#10b981;--danger:#ef4444;--muted:#94a3b8}
-    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
-    body{display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#071025, #081424);color:#e6eef6}
-    .wrap{width:760px;max-width:96%;display:grid;grid-template-columns:420px 1fr;gap:18px}
-    .card{background:rgba(255,255,255,0.02);padding:14px;border-radius:12px;box-shadow:0 6px 20px rgba(2,6,23,0.6)}
-    canvas{display:block;background:linear-gradient(180deg,#06101b,#061520);border-radius:8px;width:100%;height:auto}
-    h1{margin:0 0 8px;font-size:18px}
-    .meta{font-size:13px;color:var(--muted);margin-bottom:8px}
-    .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    button{background:var(--accent);border:0;padding:8px 12px;border-radius:8px;color:#04211a;font-weight:700;cursor:pointer}
-    button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#cfe7ff}
-    .stats{display:flex;gap:10px;margin-top:8px}
-    .stat{background:rgba(255,255,255,0.02);padding:8px 10px;border-radius:8px;font-weight:600}
-    .hint{color:var(--muted);font-size:13px;margin-top:10px}
-    .footer{font-size:13px;color:var(--muted);margin-top:12px}
-    .overlay{position:relative}
-    .center-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
-    .center-msg .box{background:rgba(2,6,23,0.8);padding:12px 16px;border-radius:10px;text-align:center}
-    .center-msg h2{margin:0 0 6px}
+    html,body {
+      margin:0; padding:0; height:100%; width:100%;
+      background:linear-gradient(180deg,#071025, #081424);
+      font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;
+      color:#e6eef6;
+      overflow:hidden;
+    }
+    canvas {
+      display:block;
+      width:100vw;
+      height:100vh;
+      background:linear-gradient(180deg,#06101b,#061520);
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>Snake — Eat the fruit 🍎</h1>
-      <div class="meta">Starts as a single dot. Use arrow keys to move. Eat fruit to grow.</div>
-
-      <div class="overlay">
-        <canvas id="game" width="420" height="420"></canvas>
-        <div class="center-msg" id="message" aria-hidden="true">
-          <div class="box" id="msgBox" style="display:none">
-            <h2 id="msgTitle">Paused</h2>
-            <div id="msgText"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="controls" style="margin-top:10px">
-        <button id="startBtn">Start / Restart</button>
-        <button id="pauseBtn" class="secondary">Pause</button>
-        <label style="margin-left:auto;color:var(--muted);font-size:13px">Speed
-          <input id="speedRange" type="range" min="4" max="16" value="8" style="vertical-align:middle;margin-left:8px">
-        </label>
-      </div>
-
-      <div class="stats">
-        <div class="stat">Score: <span id="score">0</span></div>
-        <div class="stat">Length: <span id="length">1</span></div>
-      </div>
-
-      <div class="hint">Controls: Arrow keys to move — space to pause/resume. You cannot instantly reverse direction.</div>
-      <div class="footer">Implementation: single-file HTML + JS using canvas. No libraries.</div>
-    </div>
-
-    
+  <canvas id="game"></canvas>
 
   <script>
-  // Minimal comments: explain why certain checks exist
   (function(){
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
-    const startBtn = document.getElementById('startBtn');
-    const pauseBtn = document.getElementById('pauseBtn');
-    const msgBox = document.getElementById('msgBox');
-    const msgTitle = document.getElementById('msgTitle');
-    const msgText = document.getElementById('msgText');
-    const scoreEl = document.getElementById('score');
-    const lengthEl = document.getElementById('length');
-    const speedRange = document.getElementById('speedRange');
 
     const CELL = 20; // cell size in px
-    const COLS = Math.floor(canvas.width / CELL);
-    const ROWS = Math.floor(canvas.height / CELL);
+    let COLS, ROWS;
 
-    let snake = []; // array of {x,y}
+    let snake = [];
     let dir = {x:1,y:0};
     let nextDir = {x:1,y:0};
     let fruit = null;
@@ -88,6 +39,16 @@
     let running = false;
     let paused = false;
     let tickInterval = null;
+
+    function resizeCanvas(){
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      COLS = Math.floor(canvas.width / CELL);
+      ROWS = Math.floor(canvas.height / CELL);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
 
     function randCell(){
       return { x: Math.floor(Math.random()*COLS), y: Math.floor(Math.random()*ROWS) };
@@ -105,138 +66,86 @@
     function reset(){
       snake = [];
       const start = { x: Math.floor(COLS/2), y: Math.floor(ROWS/2) };
-      snake.push(start); // starts as single dot
+      snake.push(start);
       dir = {x:1,y:0}; nextDir = {x:1,y:0};
       score = 0; running = true; paused = false;
       placeFruit();
-      updateUI();
-      hideMessage();
       startLoop();
     }
 
     function gameOver(){
       running = false; stopLoop();
-      showMessage('Game Over', `Score: ${score}`);
+      alert("Game Over! Score: " + score);
+      reset();
     }
 
     function startLoop(){
       stopLoop();
-      const speed = Number(speedRange.value); // ticks per second
-      const ms = Math.round(1000 / speed);
+      const ms = 100; // fixed speed
       tickInterval = setInterval(tick, ms);
     }
 
-    function stopLoop(){ if(tickInterval) { clearInterval(tickInterval); tickInterval = null; } }
+    function stopLoop(){
+      if(tickInterval){ clearInterval(tickInterval); tickInterval = null; }
+    }
 
     function tick(){
       if(!running || paused) return;
-      // apply buffered direction if not reversing
       if(!isOpposite(nextDir, dir)) dir = {...nextDir};
 
       const head = snake[0];
       const newHead = { x: head.x + dir.x, y: head.y + dir.y };
 
-      // collisions with walls
       if(newHead.x < 0 || newHead.x >= COLS || newHead.y < 0 || newHead.y >= ROWS){
         return gameOver();
       }
-
-      // self-collision
       if(snake.some(seg => seg.x === newHead.x && seg.y === newHead.y)){
         return gameOver();
       }
 
       snake.unshift(newHead);
 
-      // eating fruit
       if(fruit && newHead.x === fruit.x && newHead.y === fruit.y){
-        score += 1;
+        score++;
         placeFruit();
       } else {
-        snake.pop(); // normal move
+        snake.pop();
       }
 
-      updateUI();
       render();
     }
 
-    function updateUI(){ scoreEl.textContent = score; lengthEl.textContent = snake.length; }
-
     function render(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
-      drawGrid();
-      // draw fruit
+
       if(fruit){
         ctx.fillStyle = '#ef4444';
-        roundRect(ctx, fruit.x*CELL+2, fruit.y*CELL+2, CELL-4, CELL-4, 5);
-        ctx.fill();
+        ctx.fillRect(fruit.x*CELL, fruit.y*CELL, CELL, CELL);
       }
 
-      // draw snake
       for(let i=0;i<snake.length;i++){
         const s = snake[i];
         ctx.fillStyle = i===0 ? '#10b981' : '#34d399';
-        roundRect(ctx, s.x*CELL+2, s.y*CELL+2, CELL-4, CELL-4, 4);
-        ctx.fill();
+        ctx.fillRect(s.x*CELL, s.y*CELL, CELL-2, CELL-2);
       }
-    }
 
-    function drawGrid(){
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255,255,255,0.02)';
-      ctx.lineWidth = 1;
-      for(let x=0;x<=COLS;x++){
-        ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL, canvas.height); ctx.stroke();
-      }
-      for(let y=0;y<=ROWS;y++){
-        ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(canvas.width, y*CELL); ctx.stroke();
-      }
-      ctx.restore();
-    }
-
-    function roundRect(ctx,x,y,w,h,r){
-      ctx.beginPath();
-      ctx.moveTo(x+r,y);
-      ctx.arcTo(x+w,y,x+w,y+h,r);
-      ctx.arcTo(x+w,y+h,x,y+h,r);
-      ctx.arcTo(x,y+h,x,y,r);
-      ctx.arcTo(x,y,x+w,y,r);
-      ctx.closePath();
+      ctx.fillStyle = "white";
+      ctx.font = "16px monospace";
+      ctx.fillText("Score: " + score, 10, 20);
     }
 
     function isOpposite(a,b){ return a.x === -b.x && a.y === -b.y; }
 
-    // input handling — buffer nextDir so quick keypresses don't flip twice in single tick
     window.addEventListener('keydown', e=>{
-      if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
-      if(e.code === 'Space'){
-        if(!running) return reset();
-        paused = !paused; showOrHidePause();
-        return;
+      const kd = { ArrowUp:{x:0,y:-1}, ArrowDown:{x:0,y:1}, ArrowLeft:{x:-1,y:0}, ArrowRight:{x:1,y:0} };
+      if(kd[e.key]){
+        const cand = kd[e.key];
+        if(snake.length>1 && isOpposite(cand, dir)) return;
+        nextDir = cand;
       }
-      if(!running) return; // ignore direction until started
-      const kd = { 'ArrowUp':{x:0,y:-1}, 'ArrowDown':{x:0,y:1}, 'ArrowLeft':{x:-1,y:0}, 'ArrowRight':{x:1,y:0} };
-      if(kd[e.code]){
-        const candidate = kd[e.code];
-        // block instant reverse into itself when length>1
-        if(snake.length>1 && isOpposite(candidate, dir)) return;
-        nextDir = candidate;
-      }
+      if(e.code === 'Space'){ paused = !paused; }
     });
 
-    speedRange.addEventListener('input', ()=>{ startLoop(); });
-
-    startBtn.addEventListener('click', ()=> reset());
-    pauseBtn.addEventListener('click', ()=>{ if(!running) return; paused = !paused; showOrHidePause(); });
-
-    function showOrHidePause(){ if(paused) showMessage('Paused','Press Space or Pause to resume'); else hideMessage(); }
-    function showMessage(title,text){ msgTitle.textContent = title; msgText.textContent = text; msgBox.style.display = 'block'; }
-    function hideMessage(){ msgBox.style.display = 'none'; }
-
-    // initial render
-    render();
-
-    // start on load
     reset();
   })();
   </script>

@@ -2,11 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>Classic Snake</title>
+  <title>Snake — Polished Classic</title>
   <style>
     html,body {
-      margin:0; padding:0;
-      height:100%; width:100%;
+      margin:0; padding:0; height:100%; width:100%;
       background:black;
       color:lime;
       font-family:monospace;
@@ -15,6 +14,7 @@
     #scoreboard {
       position:absolute; top:10px; left:10px;
       font-size:18px; font-weight:bold;
+      text-shadow:0 0 6px lime;
     }
     canvas { display:block; }
     #message {
@@ -26,6 +26,7 @@
       font-weight:bold;
       display:none;
       text-align:center;
+      text-shadow:0 0 10px lime;
     }
   </style>
 </head>
@@ -47,7 +48,8 @@
 
     const CELL = 20;
     let COLS, ROWS;
-    let snake, dir, nextDir, fruit, score, highScore, running, paused, loop;
+    let snake, dir, nextDir, fruit, score, highScore, running, paused;
+    let lastTime=0, speed=8, frameTime=0; // speed = moves per second
 
     function resize(){
       canvas.width = window.innerWidth;
@@ -79,11 +81,12 @@
       placeFruit();
       scoreEl.textContent = score;
       msgEl.style.display="none";
-      startLoop();
+      lastTime=0; frameTime=0;
+      requestAnimationFrame(loop);
     }
 
     function gameOver(){
-      running = false; stopLoop();
+      running = false;
       if(score > highScore){
         highScore = score;
         localStorage.setItem("snakeHigh", highScore);
@@ -93,14 +96,22 @@
       msgEl.style.display="block";
     }
 
-    function startLoop(){
-      stopLoop();
-      loop = setInterval(tick, 120);
+    function loop(timestamp){
+      if(!running) return;
+      const delta = (timestamp - lastTime)/1000;
+      lastTime = timestamp;
+      if(!paused){
+        frameTime += delta;
+        if(frameTime >= 1/speed){
+          frameTime = 0;
+          tick();
+        }
+      }
+      render();
+      requestAnimationFrame(loop);
     }
-    function stopLoop(){ if(loop) clearInterval(loop); loop=null; }
 
     function tick(){
-      if(!running || paused) return;
       if(!isOpposite(nextDir, dir)) dir = {...nextDir};
       const head = snake[0];
       const newHead = { x: head.x+dir.x, y: head.y+dir.y };
@@ -113,23 +124,50 @@
         score++;
         scoreEl.textContent = score;
         placeFruit();
+        // slightly increase speed
+        speed = Math.min(16, speed + 0.2);
       } else {
         snake.pop();
       }
-      render();
     }
 
     function render(){
       ctx.fillStyle="black";
       ctx.fillRect(0,0,canvas.width,canvas.height);
 
-      ctx.fillStyle="white";
-      ctx.fillRect(fruit.x*CELL, fruit.y*CELL, CELL, CELL);
+      // fruit design: red circle with green leaf
+      if(fruit){
+        const fx = fruit.x*CELL+CELL/2;
+        const fy = fruit.y*CELL+CELL/2;
+        ctx.fillStyle="red";
+        ctx.beginPath();
+        ctx.arc(fx, fy, CELL/2-2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle="green";
+        ctx.fillRect(fx-2, fy-CELL/2+2, 4, 6);
+      }
 
-      ctx.fillStyle="lime";
-      snake.forEach((s,i)=>{
-        ctx.fillRect(s.x*CELL, s.y*CELL, CELL, CELL);
-      });
+      // snake: glowing green rounded rectangles
+      for(let i=0;i<snake.length;i++){
+        const s = snake[i];
+        const x = s.x*CELL, y = s.y*CELL;
+        ctx.fillStyle = i===0 ? "lime" : "#32cd32";
+        ctx.shadowColor="lime";
+        ctx.shadowBlur=8;
+        roundRect(ctx,x+2,y+2,CELL-4,CELL-4,6,true);
+      }
+      ctx.shadowBlur=0;
+    }
+
+    function roundRect(ctx,x,y,w,h,r,fill){
+      ctx.beginPath();
+      ctx.moveTo(x+r,y);
+      ctx.arcTo(x+w,y,x+w,y+h,r);
+      ctx.arcTo(x+w,y+h,x,y+h,r);
+      ctx.arcTo(x,y+h,x,y,r);
+      ctx.arcTo(x,y,x+w,y,r);
+      ctx.closePath();
+      if(fill) ctx.fill();
     }
 
     function isOpposite(a,b){ return a.x===-b.x && a.y===-b.y; }

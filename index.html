@@ -3,52 +3,58 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Snake — Fullscreen UI</title>
+  <title>Snake — Polished UI</title>
   <style>
     html,body {
       margin:0; padding:0; height:100%; width:100%;
-      background:linear-gradient(180deg,#071025, #081424);
+      background:linear-gradient(180deg,#071025,#081424);
       font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;
-      color:#e6eef6;
-      overflow:hidden;
+      color:#f1f5f9; overflow:hidden;
     }
     canvas {
       display:block;
       width:100vw;
       height:100vh;
-      background:linear-gradient(180deg,#06101b,#061520);
+      background:linear-gradient(180deg,#0a1527,#0d1a30);
     }
     #hud {
-      position:absolute;
-      top:10px; left:10px;
-      display:flex; flex-direction:column; gap:8px;
-      background:rgba(0,0,0,0.4);
-      padding:10px 14px;
-      border-radius:10px;
+      position:absolute; top:12px; left:12px;
+      display:flex; flex-direction:column; gap:10px;
+      background:rgba(255,255,255,0.08);
+      backdrop-filter:blur(6px);
+      padding:12px 16px;
+      border-radius:12px;
+      box-shadow:0 4px 12px rgba(0,0,0,0.4);
     }
     .stats {
-      display:flex; gap:16px;
-      font-size:14px; font-weight:bold;
+      display:flex; gap:18px;
+      font-size:14px; font-weight:600;
     }
     button {
       background:#10b981; color:#041d16;
       font-weight:bold;
-      border:none; border-radius:6px;
-      padding:6px 10px;
-      cursor:pointer;
+      border:none; border-radius:8px;
+      padding:8px 14px; cursor:pointer;
+      transition:all 0.2s;
     }
-    button.secondary {
-      background:#374151; color:#e5e7eb;
-    }
+    button:hover { filter:brightness(1.1); }
+    button.secondary { background:#374151; color:#e5e7eb; }
+    label { font-size:13px; color:#cbd5e1; display:flex; align-items:center; gap:6px; }
+    input[type=range]{ cursor:pointer; }
     #overlayMsg {
-      position:absolute;
-      inset:0;
+      position:absolute; inset:0;
       display:flex; align-items:center; justify-content:center;
-      background:rgba(0,0,0,0.6);
-      font-size:22px; font-weight:bold;
-      color:white;
+      background:rgba(0,0,0,0.55);
       visibility:hidden;
     }
+    #overlayMsg .box {
+      background:rgba(20,30,48,0.9);
+      padding:24px 32px;
+      border-radius:14px;
+      text-align:center;
+      box-shadow:0 6px 20px rgba(0,0,0,0.6);
+    }
+    #overlayMsg h2 { margin:0 0 8px; font-size:22px; }
   </style>
 </head>
 <body>
@@ -62,14 +68,16 @@
     <div style="display:flex; gap:8px; flex-wrap:wrap">
       <button id="restartBtn">Restart</button>
       <button id="pauseBtn" class="secondary">Pause</button>
-      <label style="font-size:13px; color:#d1d5db">
-        Speed
-        <input id="speedRange" type="range" min="4" max="16" value="8" />
-      </label>
+      <label>Speed <input id="speedRange" type="range" min="4" max="16" value="8"></label>
     </div>
   </div>
 
-  <div id="overlayMsg">Game Over</div>
+  <div id="overlayMsg">
+    <div class="box">
+      <h2 id="overlayTitle">Game Over</h2>
+      <div id="overlayText"></div>
+    </div>
+  </div>
 
   <script>
   (function(){
@@ -81,6 +89,8 @@
     const pauseBtn = document.getElementById('pauseBtn');
     const speedRange = document.getElementById('speedRange');
     const overlayMsg = document.getElementById('overlayMsg');
+    const overlayTitle = document.getElementById('overlayTitle');
+    const overlayText = document.getElementById('overlayText');
 
     const CELL = 20;
     let COLS, ROWS;
@@ -98,10 +108,8 @@
     function randCell(){
       return { x: Math.floor(Math.random()*COLS), y: Math.floor(Math.random()*ROWS) };
     }
-
     function placeFruit(){
-      let pos;
-      const occupied = new Set(snake.map(s=>s.x+','+s.y));
+      let pos; const occupied = new Set(snake.map(s=>s.x+','+s.y));
       do { pos = randCell(); } while (occupied.has(pos.x+','+pos.y));
       fruit = pos;
     }
@@ -110,94 +118,69 @@
       snake = [{ x: Math.floor(COLS/2), y: Math.floor(ROWS/2) }];
       dir = {x:1,y:0}; nextDir = {x:1,y:0};
       score = 0; running = true; paused = false;
-      placeFruit();
-      overlayMsg.style.visibility = "hidden";
-      startLoop();
+      overlayMsg.style.visibility="hidden";
+      pauseBtn.textContent = "Pause";
+      placeFruit(); startLoop();
     }
-
     function gameOver(){
-      running = false; stopLoop();
-      overlayMsg.textContent = "Game Over — Score: " + score;
-      overlayMsg.style.visibility = "visible";
+      running=false; stopLoop();
+      overlayTitle.textContent="Game Over";
+      overlayText.textContent="Score: "+score;
+      overlayMsg.style.visibility="visible";
     }
 
     function startLoop(){
       stopLoop();
       const ms = Math.round(1000 / Number(speedRange.value));
-      tickInterval = setInterval(tick, ms);
+      tickInterval=setInterval(tick, ms);
     }
     function stopLoop(){ if(tickInterval){ clearInterval(tickInterval); tickInterval=null; } }
 
     function tick(){
-      if(!running || paused) return;
-      if(!isOpposite(nextDir, dir)) dir = {...nextDir};
-      const head = snake[0];
-      const newHead = { x: head.x + dir.x, y: head.y + dir.y };
-
+      if(!running||paused) return;
+      if(!isOpposite(nextDir,dir)) dir={...nextDir};
+      const head=snake[0];
+      const newHead={x:head.x+dir.x,y:head.y+dir.y};
       if(newHead.x<0||newHead.x>=COLS||newHead.y<0||newHead.y>=ROWS) return gameOver();
       if(snake.some(s=>s.x===newHead.x && s.y===newHead.y)) return gameOver();
-
       snake.unshift(newHead);
-
-      if(newHead.x===fruit.x && newHead.y===fruit.y){
-        score++;
-        placeFruit();
-      } else {
-        snake.pop();
-      }
-      updateUI();
-      render();
+      if(newHead.x===fruit.x&&newHead.y===fruit.y){ score++; placeFruit(); }
+      else { snake.pop(); }
+      updateUI(); render();
     }
 
-    function updateUI(){
-      scoreEl.textContent = score;
-      lengthEl.textContent = snake.length;
-    }
-
+    function updateUI(){ scoreEl.textContent=score; lengthEl.textContent=snake.length; }
     function render(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
-
-      // fruit
-      if(fruit){
-        ctx.fillStyle = '#ef4444';
-        roundRect(ctx, fruit.x*CELL+2, fruit.y*CELL+2, CELL-4, CELL-4, 6);
-        ctx.fill();
-      }
-
-      // snake
-      for(let i=0;i<snake.length;i++){
-        const s = snake[i];
-        ctx.fillStyle = i===0 ? '#10b981' : '#34d399';
-        roundRect(ctx, s.x*CELL+2, s.y*CELL+2, CELL-4, CELL-4, 6);
-        ctx.fill();
+      if(fruit){ ctx.fillStyle='#ef4444'; roundRect(ctx,fruit.x*CELL+2,fruit.y*CELL+2,CELL-4,CELL-4,6); ctx.fill(); }
+      for(let i=0;i<snake.length;i++){ 
+        const s=snake[i]; 
+        ctx.fillStyle=i===0?'#10b981':'#34d399';
+        roundRect(ctx,s.x*CELL+2,s.y*CELL+2,CELL-4,CELL-4,6); ctx.fill(); 
       }
     }
-
     function roundRect(ctx,x,y,w,h,r){
-      ctx.beginPath();
-      ctx.moveTo(x+r,y);
-      ctx.arcTo(x+w,y,x+w,y+h,r);
-      ctx.arcTo(x+w,y+h,x,y+h,r);
-      ctx.arcTo(x,y+h,x,y,r);
-      ctx.arcTo(x,y,x+w,y,r);
-      ctx.closePath();
+      ctx.beginPath(); ctx.moveTo(x+r,y);
+      ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+      ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
     }
-
-    function isOpposite(a,b){ return a.x === -b.x && a.y === -b.y; }
+    function isOpposite(a,b){ return a.x===-b.x && a.y===-b.y; }
 
     window.addEventListener('keydown', e=>{
-      const kd = { ArrowUp:{x:0,y:-1}, ArrowDown:{x:0,y:1}, ArrowLeft:{x:-1,y:0}, ArrowRight:{x:1,y:0} };
-      if(kd[e.key]){
-        const cand = kd[e.key];
-        if(snake.length>1 && isOpposite(cand, dir)) return;
-        nextDir = cand;
-      }
-      if(e.code==='Space'){ paused=!paused; }
+      const kd={ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0}};
+      if(kd[e.key]){ const cand=kd[e.key]; if(snake.length>1&&isOpposite(cand,dir))return; nextDir=cand; }
+      if(e.code==='Space'){ togglePause(); }
     });
 
     restartBtn.addEventListener('click', reset);
-    pauseBtn.addEventListener('click', ()=>{ paused=!paused; });
+    pauseBtn.addEventListener('click', togglePause);
     speedRange.addEventListener('input', ()=>{ if(running) startLoop(); });
+
+    function togglePause(){
+      if(!running) return;
+      paused=!paused;
+      pauseBtn.textContent=paused?"Resume":"Pause";
+    }
 
     reset();
   })();

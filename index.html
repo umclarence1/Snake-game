@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Snake — Fullscreen</title>
+  <title>Snake — Fullscreen UI</title>
   <style>
     html,body {
       margin:0; padding:0; height:100%; width:100%;
@@ -18,27 +18,73 @@
       height:100vh;
       background:linear-gradient(180deg,#06101b,#061520);
     }
+    #hud {
+      position:absolute;
+      top:10px; left:10px;
+      display:flex; flex-direction:column; gap:8px;
+      background:rgba(0,0,0,0.4);
+      padding:10px 14px;
+      border-radius:10px;
+    }
+    .stats {
+      display:flex; gap:16px;
+      font-size:14px; font-weight:bold;
+    }
+    button {
+      background:#10b981; color:#041d16;
+      font-weight:bold;
+      border:none; border-radius:6px;
+      padding:6px 10px;
+      cursor:pointer;
+    }
+    button.secondary {
+      background:#374151; color:#e5e7eb;
+    }
+    #overlayMsg {
+      position:absolute;
+      inset:0;
+      display:flex; align-items:center; justify-content:center;
+      background:rgba(0,0,0,0.6);
+      font-size:22px; font-weight:bold;
+      color:white;
+      visibility:hidden;
+    }
   </style>
 </head>
 <body>
   <canvas id="game"></canvas>
 
+  <div id="hud">
+    <div class="stats">
+      <div>Score: <span id="score">0</span></div>
+      <div>Length: <span id="length">1</span></div>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap">
+      <button id="restartBtn">Restart</button>
+      <button id="pauseBtn" class="secondary">Pause</button>
+      <label style="font-size:13px; color:#d1d5db">
+        Speed
+        <input id="speedRange" type="range" min="4" max="16" value="8" />
+      </label>
+    </div>
+  </div>
+
+  <div id="overlayMsg">Game Over</div>
+
   <script>
   (function(){
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const lengthEl = document.getElementById('length');
+    const restartBtn = document.getElementById('restartBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const speedRange = document.getElementById('speedRange');
+    const overlayMsg = document.getElementById('overlayMsg');
 
-    const CELL = 20; // cell size in px
+    const CELL = 20;
     let COLS, ROWS;
-
-    let snake = [];
-    let dir = {x:1,y:0};
-    let nextDir = {x:1,y:0};
-    let fruit = null;
-    let score = 0;
-    let running = false;
-    let paused = false;
-    let tickInterval = null;
+    let snake, dir, nextDir, fruit, score, running, paused, tickInterval;
 
     function resizeCanvas(){
       canvas.width = window.innerWidth;
@@ -46,7 +92,6 @@
       COLS = Math.floor(canvas.width / CELL);
       ROWS = Math.floor(canvas.height / CELL);
     }
-
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
@@ -57,81 +102,85 @@
     function placeFruit(){
       let pos;
       const occupied = new Set(snake.map(s=>s.x+','+s.y));
-      do {
-        pos = randCell();
-      } while (occupied.has(pos.x+','+pos.y));
+      do { pos = randCell(); } while (occupied.has(pos.x+','+pos.y));
       fruit = pos;
     }
 
     function reset(){
-      snake = [];
-      const start = { x: Math.floor(COLS/2), y: Math.floor(ROWS/2) };
-      snake.push(start);
+      snake = [{ x: Math.floor(COLS/2), y: Math.floor(ROWS/2) }];
       dir = {x:1,y:0}; nextDir = {x:1,y:0};
       score = 0; running = true; paused = false;
       placeFruit();
+      overlayMsg.style.visibility = "hidden";
       startLoop();
     }
 
     function gameOver(){
       running = false; stopLoop();
-      alert("Game Over! Score: " + score);
-      reset();
+      overlayMsg.textContent = "Game Over — Score: " + score;
+      overlayMsg.style.visibility = "visible";
     }
 
     function startLoop(){
       stopLoop();
-      const ms = 100; // fixed speed
+      const ms = Math.round(1000 / Number(speedRange.value));
       tickInterval = setInterval(tick, ms);
     }
-
-    function stopLoop(){
-      if(tickInterval){ clearInterval(tickInterval); tickInterval = null; }
-    }
+    function stopLoop(){ if(tickInterval){ clearInterval(tickInterval); tickInterval=null; } }
 
     function tick(){
       if(!running || paused) return;
       if(!isOpposite(nextDir, dir)) dir = {...nextDir};
-
       const head = snake[0];
       const newHead = { x: head.x + dir.x, y: head.y + dir.y };
 
-      if(newHead.x < 0 || newHead.x >= COLS || newHead.y < 0 || newHead.y >= ROWS){
-        return gameOver();
-      }
-      if(snake.some(seg => seg.x === newHead.x && seg.y === newHead.y)){
-        return gameOver();
-      }
+      if(newHead.x<0||newHead.x>=COLS||newHead.y<0||newHead.y>=ROWS) return gameOver();
+      if(snake.some(s=>s.x===newHead.x && s.y===newHead.y)) return gameOver();
 
       snake.unshift(newHead);
 
-      if(fruit && newHead.x === fruit.x && newHead.y === fruit.y){
+      if(newHead.x===fruit.x && newHead.y===fruit.y){
         score++;
         placeFruit();
       } else {
         snake.pop();
       }
-
+      updateUI();
       render();
+    }
+
+    function updateUI(){
+      scoreEl.textContent = score;
+      lengthEl.textContent = snake.length;
     }
 
     function render(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
 
+      // fruit
       if(fruit){
         ctx.fillStyle = '#ef4444';
-        ctx.fillRect(fruit.x*CELL, fruit.y*CELL, CELL, CELL);
+        roundRect(ctx, fruit.x*CELL+2, fruit.y*CELL+2, CELL-4, CELL-4, 6);
+        ctx.fill();
       }
 
+      // snake
       for(let i=0;i<snake.length;i++){
         const s = snake[i];
         ctx.fillStyle = i===0 ? '#10b981' : '#34d399';
-        ctx.fillRect(s.x*CELL, s.y*CELL, CELL-2, CELL-2);
+        roundRect(ctx, s.x*CELL+2, s.y*CELL+2, CELL-4, CELL-4, 6);
+        ctx.fill();
       }
+    }
 
-      ctx.fillStyle = "white";
-      ctx.font = "16px monospace";
-      ctx.fillText("Score: " + score, 10, 20);
+    function roundRect(ctx,x,y,w,h,r){
+      ctx.beginPath();
+      ctx.moveTo(x+r,y);
+      ctx.arcTo(x+w,y,x+w,y+h,r);
+      ctx.arcTo(x+w,y+h,x,y+h,r);
+      ctx.arcTo(x,y+h,x,y,r);
+      ctx.arcTo(x,y,x+w,y,r);
+      ctx.closePath();
     }
 
     function isOpposite(a,b){ return a.x === -b.x && a.y === -b.y; }
@@ -143,8 +192,12 @@
         if(snake.length>1 && isOpposite(cand, dir)) return;
         nextDir = cand;
       }
-      if(e.code === 'Space'){ paused = !paused; }
+      if(e.code==='Space'){ paused=!paused; }
     });
+
+    restartBtn.addEventListener('click', reset);
+    pauseBtn.addEventListener('click', ()=>{ paused=!paused; });
+    speedRange.addEventListener('input', ()=>{ if(running) startLoop(); });
 
     reset();
   })();
